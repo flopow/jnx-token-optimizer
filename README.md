@@ -93,3 +93,13 @@ jnx config mode lite
 jnx config mode superlite
 jnx usage
 ```
+
+## MCP
+
+O instalador também cria `jnx-mcp`. Ele conecta a um servidor MCP via STDIO, inicializa o protocolo e lista as ferramentas disponíveis:
+
+```powershell
+jnx-mcp npx -y @modelcontextprotocol/server-filesystem C:\Projetos\MeuApp
+```
+
+Isso permite validar servidores MCP antes de conectá-los ao roteador de tarefas. O bridge usa JSON-RPC sobre STDIO e não envia credenciais para o servidor.
