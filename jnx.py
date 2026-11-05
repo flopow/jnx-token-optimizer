@@ -62,45 +62,42 @@ def request(c,prompt,session):
     except urllib.error.HTTPError as e: print(f'\nprovider error {e.code}: {e.read().decode("utf-8","replace")}',file=sys.stderr); return 1
     except Exception as e: print(f'\nconnection error: {e}',file=sys.stderr); return 1
 def dashboard(c):
+    print('JN X!T · sessão persistente · digite /help para comandos')
     while True:
         s=load_session()
-        print('\033[2J\033[H',end='')
-        print('╭────────────────────────────────────────────────────────────╮')
-        print('│ JN X!T AI · TOKEN OPTIMIZER                               │')
-        print('├────────────────────────────────────────────────────────────┤')
-        print(f'│ Pasta: {Path.cwd()}')
-        print(f'│ Modo: {c["mode"]}   Provedor: {c["provider"]}   Modelo: {c["model"]}')
-        print(f'│ Sessão: {len(s["messages"])} mensagens · resumo persistente')
-        print('├────────────────────────────────────────────────────────────┤')
-        print('│ [1] Nova pergunta                                          │')
-        print('│ [2] Ver sessão e resumo                                    │')
-        print('│ [3] Escolher modo (normal/lite/superlite)                 │')
-        print('│ [4] Configuração                                           │')
-        print('│ [5] Uso de tokens                                          │')
-        print('│ [6] Ajuda                                                  │')
-        print('│ [0] Sair                                                   │')
-        print('╰────────────────────────────────────────────────────────────╯')
-        choice=input('Escolha: ').strip()
-        if choice=='0': return
-        if choice=='1':
-            prompt=input('\nPergunta: ').strip()
-            if prompt: request(c,prompt,s)
-            input('\nPressione Enter para voltar ao menu...')
-        elif choice=='2':
-            print(json.dumps({'arquivo':str(session_path()),'mensagens':len(s['messages']),'resumo':s['summary']},ensure_ascii=False,indent=2)); input('\nEnter...')
-        elif choice=='3':
-            mode=input('Modo [normal/lite/superlite]: ').strip().lower()
-            if mode in ('normal','lite','superlite'): c['mode']=mode; save(c)
-        elif choice=='4':
-            print(json.dumps(c,ensure_ascii=False,indent=2)); input('\nEdite usando: jnx config chave valor\nEnter...')
-        elif choice=='5':
-            os.system(f'"{sys.executable}" "{Path(__file__)}" usage')
-            input('\nEnter...')
-        elif choice=='6':
-            print('\njnx ask "sua pergunta"  executa diretamente')
-            print('jnx session              mostra a sessão da pasta atual')
-            print('jnx config mode superlite economiza contexto')
-            input('\nEnter...')
+        try: line=input(f'\njnx [{c["mode"]}|{c["provider"]}/{c["model"]}]> ').strip()
+        except (EOFError,KeyboardInterrupt): print(); return
+        if not line: continue
+        if line in ('/exit','/quit','/q'): return
+        if line in ('/help','/?'):
+            print('/help /summary /compact /session /usage /mode <normal|lite|superlite> /provider <name> /model <name> /mcp /clear /exit')
+        elif line=='/summary':
+            print(s.get('summary') or '(sem resumo ainda)')
+        elif line=='/session':
+            print(json.dumps({'arquivo':str(session_path()),'mensagens':len(s['messages']),'pasta':s['cwd']},ensure_ascii=False,indent=2))
+        elif line=='/compact':
+            s['summary']=make_summary(s['messages']); s['messages']=s['messages'][-6:]; save_session(s); print('contexto compactado e salvo')
+        elif line=='/usage':
+            total=calls=0
+            if USAGE.exists():
+                for l in USAGE.read_text(encoding='utf-8').splitlines():
+                    try: total+=json.loads(l)['total_tokens']; calls+=1
+                    except Exception: pass
+            print(f'calls={calls} total_tokens={total}')
+        elif line.startswith('/mode '):
+            mode=line.split(None,1)[1].lower()
+            if mode in ('normal','lite','superlite'): c['mode']=mode; save(c); print(f'modo: {mode}')
+            else: print('modo inválido')
+        elif line.startswith('/provider '):
+            c['provider']=line.split(None,1)[1]; save(c); print(f'provedor: {c["provider"]}')
+        elif line.startswith('/model '):
+            c['model']=line.split(None,1)[1]; save(c); print(f'modelo: {c["model"]}')
+        elif line=='/mcp':
+            print('MCP: use jnx-mcp <comando-do-servidor> para listar ferramentas via STDIO')
+        elif line=='/clear':
+            s={'cwd':str(Path.cwd()),'created':time.time(),'summary':'','messages':[]}; save_session(s); print('sessão limpa')
+        else:
+            request(c,line,s)
 def main():
     ap=argparse.ArgumentParser(prog='jnx',description='JN X!T token optimizer with persistent sessions')
     sub=ap.add_subparsers(dest='cmd'); sub.add_parser('init'); sub.add_parser('usage'); sub.add_parser('session'); q=sub.add_parser('config'); q.add_argument('key'); q.add_argument('value',nargs='?'); a=sub.add_parser('ask'); a.add_argument('prompt',nargs='+')
